@@ -1,0 +1,452 @@
+--[[
+	PainelUI.lua
+	Interface estilo "painel escuro" para o SEU jogo no Roblox Studio.
+	Como usar: crie um LocalScript dentro de StarterGui e cole este código.
+	Toda a lógica do jogo vai nas funções da tabela Callbacks (mais abaixo).
+]]
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local LP = Players.LocalPlayer
+
+-- ===== CONFIG =====
+local CONFIG = {
+	Title = "MEU PAINEL",
+	BackgroundImage = "", -- ex: "rbxassetid://123456789" (deixe vazio para fundo liso)
+	Width = 340,
+	Height = 390,
+	CollapsedHeight = 50,
+	UIScale = 1, -- diminua (ex: 0.8) para telas pequenas de celular
+
+	ValueLabel = "VALOR",
+	ValueDefault = 15000,
+	ValueMin = 0,
+	ValueMax = 100000,
+	ValueStep = 1000,
+
+	KeybindLabel = "TECLA DE ATALHO",
+	KeybindDefault = Enum.KeyCode.E,
+
+	ToggleALabel = "OPÇÃO A",
+	ToggleBLabel = "OPÇÃO B",
+	ActiveText = "ACTIVE",
+}
+
+-- ===== SUA LÓGICA AQUI =====
+local Callbacks = {
+	OnValueChanged = function(value) end,
+	OnKeybindChanged = function(keyCode) end,
+	OnToggleA = function(state) end,
+	OnToggleB = function(state) end,
+	OnActive = function(state) end,
+}
+
+-- ===== CORES =====
+local ACCENT = Color3.fromRGB(175, 95, 255)
+local VOID = Color3.fromRGB(15, 15, 18)
+local INPUT = Color3.fromRGB(25, 25, 30)
+local BLACK = Color3.fromRGB(8, 8, 10)
+local WHITE = Color3.fromRGB(255, 255, 255)
+local DIM = Color3.fromRGB(150, 150, 160)
+local ON_BG = Color3.fromRGB(36, 36, 42)
+
+-- ===== HELPERS =====
+local function corner(obj, radius)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, radius)
+	c.Parent = obj
+	return c
+end
+
+local function stroke(obj, color, thickness, transparency)
+	local s = Instance.new("UIStroke")
+	s.Color = color
+	s.Thickness = thickness or 1
+	s.Transparency = transparency or 0.2
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	s.Parent = obj
+	return s
+end
+
+local function tween(obj, time, props)
+	TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
+
+-- ===== GUI BASE =====
+local old = LP:WaitForChild("PlayerGui"):FindFirstChild("PainelUI")
+if old then
+	old:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "PainelUI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 100
+gui.Parent = LP:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.fromOffset(CONFIG.Width, CONFIG.Height)
+Main.AnchorPoint = Vector2.new(0.5, 0.5)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+Main.BackgroundColor3 = VOID
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Active = true
+Main.Parent = gui
+corner(Main, 22)
+stroke(Main, ACCENT, 1.5, 0.35)
+
+local scale = Instance.new("UIScale")
+scale.Scale = CONFIG.UIScale
+scale.Parent = Main
+
+local bgImg = Instance.new("ImageLabel")
+bgImg.Name = "Background"
+bgImg.Size = UDim2.fromScale(1, 1)
+bgImg.BackgroundTransparency = 1
+bgImg.Image = CONFIG.BackgroundImage
+bgImg.ImageTransparency = 0.25
+bgImg.ScaleType = Enum.ScaleType.Crop
+bgImg.ZIndex = 0
+bgImg.Parent = Main
+corner(bgImg, 22)
+
+local overlay = Instance.new("Frame")
+overlay.Size = UDim2.fromScale(1, 1)
+overlay.BackgroundColor3 = VOID
+overlay.BackgroundTransparency = 0.5
+overlay.BorderSizePixel = 0
+overlay.ZIndex = 1
+overlay.Parent = Main
+corner(overlay, 22)
+
+-- ===== HEADER =====
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, CONFIG.CollapsedHeight)
+header.BackgroundTransparency = 1
+header.ZIndex = 2
+header.Parent = Main
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, -130, 1, 0)
+title.Position = UDim2.fromOffset(18, 0)
+title.Text = CONFIG.Title
+title.Font = Enum.Font.GothamBlack
+title.TextSize = 20
+title.TextColor3 = WHITE
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 3
+title.Parent = header
+
+local function headerButton(text, offsetFromRight)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.fromOffset(34, 30)
+	b.AnchorPoint = Vector2.new(1, 0.5)
+	b.Position = UDim2.new(1, offsetFromRight, 0.5, 0)
+	b.BackgroundColor3 = INPUT
+	b.BackgroundTransparency = 0.4
+	b.Text = text
+	b.Font = Enum.Font.GothamBlack
+	b.TextSize = 13
+	b.TextColor3 = WHITE
+	b.AutoButtonColor = false
+	b.ZIndex = 3
+	b.Parent = header
+	corner(b, 8)
+	stroke(b, DIM, 1, 0.6)
+	return b
+end
+
+local btnBG = headerButton("BG", -52)
+local btnMin = headerButton("−", -12)
+
+-- ===== BODY =====
+local body = Instance.new("Frame")
+body.Name = "Body"
+body.Position = UDim2.fromOffset(0, CONFIG.CollapsedHeight)
+body.Size = UDim2.new(1, 0, 1, -CONFIG.CollapsedHeight)
+body.BackgroundTransparency = 1
+body.ZIndex = 2
+body.Parent = Main
+
+local pad = Instance.new("UIPadding")
+pad.PaddingLeft = UDim.new(0, 16)
+pad.PaddingRight = UDim.new(0, 16)
+pad.PaddingBottom = UDim.new(0, 16)
+pad.Parent = body
+
+local list = Instance.new("UIListLayout")
+list.Padding = UDim.new(0, 8)
+list.SortOrder = Enum.SortOrder.LayoutOrder
+list.Parent = body
+
+local function sectionLabel(text, order)
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(1, 0, 0, 16)
+	l.Text = text
+	l.Font = Enum.Font.GothamBold
+	l.TextSize = 12
+	l.TextColor3 = DIM
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.LayoutOrder = order
+	l.ZIndex = 3
+	l.Parent = body
+	return l
+end
+
+local function rowFrame(order, height)
+	local f = Instance.new("Frame")
+	f.Size = UDim2.new(1, 0, 0, height or 42)
+	f.BackgroundColor3 = INPUT
+	f.BackgroundTransparency = 0.28
+	f.LayoutOrder = order
+	f.ZIndex = 3
+	f.Parent = body
+	corner(f, 14)
+	return f
+end
+
+-- ===== CAMPO NUMÉRICO (- [valor] +) =====
+local value = CONFIG.ValueDefault
+
+sectionLabel(CONFIG.ValueLabel, 1)
+local numRow = rowFrame(2)
+
+local function stepButton(text, anchorX, posX)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.fromOffset(34, 34)
+	b.AnchorPoint = Vector2.new(anchorX, 0.5)
+	b.Position = UDim2.new(anchorX, posX, 0.5, 0)
+	b.BackgroundTransparency = 1
+	b.Text = text
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 18
+	b.TextColor3 = WHITE
+	b.AutoButtonColor = false
+	b.ZIndex = 4
+	b.Parent = numRow
+	return b
+end
+
+local minusBtn = stepButton("-", 0, 4)
+local plusBtn = stepButton("+", 1, -4)
+
+local valueBox = Instance.new("TextBox")
+valueBox.Size = UDim2.new(1, -84, 1, 0)
+valueBox.Position = UDim2.fromOffset(42, 0)
+valueBox.BackgroundTransparency = 1
+valueBox.Text = tostring(value)
+valueBox.Font = Enum.Font.GothamBlack
+valueBox.TextSize = 18
+valueBox.TextColor3 = WHITE
+valueBox.ClearTextOnFocus = false
+valueBox.ZIndex = 4
+valueBox.Parent = numRow
+
+local function setValue(n)
+	n = math.clamp(n, CONFIG.ValueMin, CONFIG.ValueMax)
+	value = n
+	valueBox.Text = tostring(n)
+	Callbacks.OnValueChanged(n)
+end
+
+minusBtn.Activated:Connect(function()
+	setValue(value - CONFIG.ValueStep)
+end)
+plusBtn.Activated:Connect(function()
+	setValue(value + CONFIG.ValueStep)
+end)
+valueBox.FocusLost:Connect(function()
+	local n = tonumber(valueBox.Text)
+	setValue(n or value)
+end)
+
+-- ===== ATALHO DE TECLADO =====
+local currentKey = CONFIG.KeybindDefault
+local waitingKey = false
+
+sectionLabel(CONFIG.KeybindLabel, 3)
+local keyBtn = Instance.new("TextButton")
+keyBtn.Size = UDim2.new(1, 0, 0, 42)
+keyBtn.BackgroundColor3 = INPUT
+keyBtn.BackgroundTransparency = 0.28
+keyBtn.Text = currentKey.Name:upper()
+keyBtn.Font = Enum.Font.GothamBlack
+keyBtn.TextSize = 16
+keyBtn.TextColor3 = WHITE
+keyBtn.AutoButtonColor = false
+keyBtn.LayoutOrder = 4
+keyBtn.ZIndex = 3
+keyBtn.Parent = body
+corner(keyBtn, 14)
+
+keyBtn.Activated:Connect(function()
+	waitingKey = true
+	keyBtn.Text = "PRESSIONE UMA TECLA..."
+	keyBtn.TextColor3 = ACCENT
+end)
+
+-- ===== TOGGLES =====
+local function makeToggle(text, order, onChange)
+	local row = rowFrame(order)
+	local state = false
+
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, -80, 1, 0)
+	lbl.Position = UDim2.fromOffset(16, 0)
+	lbl.Text = text
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 14
+	lbl.TextColor3 = DIM
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 4
+	lbl.Parent = row
+
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromOffset(46, 24)
+	pill.AnchorPoint = Vector2.new(1, 0.5)
+	pill.Position = UDim2.new(1, -14, 0.5, 0)
+	pill.BackgroundColor3 = ON_BG
+	pill.ZIndex = 4
+	pill.Parent = row
+	corner(pill, 12)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.fromOffset(18, 18)
+	knob.AnchorPoint = Vector2.new(0, 0.5)
+	knob.Position = UDim2.new(0, 3, 0.5, 0)
+	knob.BackgroundColor3 = DIM
+	knob.ZIndex = 5
+	knob.Parent = pill
+	corner(knob, 9)
+
+	local hit = Instance.new("TextButton")
+	hit.Size = UDim2.fromScale(1, 1)
+	hit.BackgroundTransparency = 1
+	hit.Text = ""
+	hit.ZIndex = 6
+	hit.Parent = row
+
+	hit.Activated:Connect(function()
+		state = not state
+		tween(pill, 0.15, { BackgroundColor3 = state and ACCENT or ON_BG })
+		tween(knob, 0.15, {
+			Position = state and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
+			BackgroundColor3 = state and WHITE or DIM,
+		})
+		tween(lbl, 0.15, { TextColor3 = state and WHITE or DIM })
+		onChange(state)
+	end)
+end
+
+makeToggle(CONFIG.ToggleALabel, 5, function(s)
+	Callbacks.OnToggleA(s)
+end)
+makeToggle(CONFIG.ToggleBLabel, 6, function(s)
+	Callbacks.OnToggleB(s)
+end)
+
+-- ===== BOTÃO PRINCIPAL =====
+local activeOn = false
+local activeBtn = Instance.new("TextButton")
+activeBtn.Size = UDim2.new(1, 0, 0, 52)
+activeBtn.BackgroundColor3 = BLACK
+activeBtn.Text = CONFIG.ActiveText
+activeBtn.Font = Enum.Font.GothamBlack
+activeBtn.TextSize = 20
+activeBtn.TextColor3 = WHITE
+activeBtn.AutoButtonColor = false
+activeBtn.LayoutOrder = 7
+activeBtn.ZIndex = 3
+activeBtn.Parent = body
+corner(activeBtn, 16)
+local activeStroke = stroke(activeBtn, ACCENT, 1.5, 1)
+
+local function setActive(state)
+	activeOn = state
+	tween(activeStroke, 0.15, { Transparency = state and 0.1 or 1 })
+	tween(activeBtn, 0.15, { TextColor3 = state and ACCENT or WHITE })
+	Callbacks.OnActive(state)
+end
+
+activeBtn.Activated:Connect(function()
+	setActive(not activeOn)
+end)
+
+-- ===== TECLADO (definir atalho / usar atalho) =====
+UIS.InputBegan:Connect(function(input, gameProcessed)
+	if waitingKey then
+		if input.UserInputType == Enum.UserInputType.Keyboard then
+			waitingKey = false
+			currentKey = input.KeyCode
+			keyBtn.Text = currentKey.Name:upper()
+			keyBtn.TextColor3 = WHITE
+			Callbacks.OnKeybindChanged(currentKey)
+		end
+		return
+	end
+	if not gameProcessed and input.KeyCode == currentKey then
+		setActive(not activeOn)
+	end
+end)
+
+-- ===== BOTÕES DO CABEÇALHO =====
+local bgVisible = true
+btnBG.Activated:Connect(function()
+	bgVisible = not bgVisible
+	bgImg.Visible = bgVisible
+end)
+
+local collapsed = false
+btnMin.Activated:Connect(function()
+	collapsed = not collapsed
+	btnMin.Text = collapsed and "+" or "−"
+	if collapsed then
+		body.Visible = false
+	end
+	tween(Main, 0.2, {
+		Size = UDim2.fromOffset(CONFIG.Width, collapsed and CONFIG.CollapsedHeight or CONFIG.Height),
+	})
+	if not collapsed then
+		task.delay(0.15, function()
+			if not collapsed then
+				body.Visible = true
+			end
+		end)
+	end
+end)
+
+-- ===== ARRASTAR PELO CABEÇALHO (mouse e toque) =====
+local dragging, dragStart, startPos
+
+header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = Main.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		Main.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
