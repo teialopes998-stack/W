@@ -261,7 +261,7 @@ local StartBtn = Instance.new("TextButton")
 StartBtn.Position = UDim2.fromOffset(20, 218)
 StartBtn.Size = UDim2.new(1, -40, 0, 54)
 StartBtn.BackgroundColor3 = BLACK_BTN
-StartBtn.Text = "START"
+StartBtn.Text = "INACTIVE"
 StartBtn.Font = Enum.Font.GothamBlack
 StartBtn.TextSize = 20
 StartBtn.TextColor3 = WHITE
@@ -674,36 +674,22 @@ resolveEvent()
 
 local function paintActivate()
     if lagging then
-        StartBtn.Text = "STOP"
+        StartBtn.Text = "ACTIVE"
         StartBtn.BackgroundColor3 = ON_BG
         StartBtn.TextColor3 = WHITE
     else
-        StartBtn.Text = "START"
+        StartBtn.Text = "INACTIVE"
         StartBtn.BackgroundColor3 = BLACK_BTN
         StartBtn.TextColor3 = WHITE
     end
 end
 
--- ===== VENOT PACKET LOGIC: 3 fires per 10ms =====
+-- Safe toggle state only. The original remote-event spam loop was removed
+-- because it floods the game server with repeated requests.
 local function startLagging()
     if lagging then return end
-    updatePower()
     lagging = true
     paintActivate()
-    if not Event then resolveEvent() end
-    if not Event then
-        warn("[VENOT] Event not found — check Net index")
-        return
-    end
-    local payload = table.create(intensity, function() end)
-    lagThread = task.spawn(function()
-        while lagging do
-            for _ = 1, 3 do
-                pcall(function() Event:FireServer(payload) end)
-            end
-            task.wait(0.01)
-        end
-    end)
 end
 
 local function stopLagging()
